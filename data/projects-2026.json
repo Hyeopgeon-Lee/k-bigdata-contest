@@ -195,7 +195,7 @@
       "method": "YouTube public watch-page metadata",
       "summaryBasis": "공개 YouTube 설명에 근거한 요약"
     },
-    "featured": false,
+    "featured": true,
     "duplicateOf": null
   },
   {
