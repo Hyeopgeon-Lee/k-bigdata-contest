@@ -1,0 +1,55 @@
+name: Sync public YouTube projects
+on:
+  workflow_dispatch:
+    inputs:
+      year:
+        description: '전시 연도 (공개일 UTC 기준)'
+        required: true
+        default: '2026'
+        type: string
+  schedule:
+    - cron: '17 21 * * 0'
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+concurrency:
+  group: youtube-sync
+  cancel-in-progress: false
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.commit.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Fetch and validate complete snapshot
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          EXHIBITION_YEAR: ${{ inputs.year }}
+        run: npm run sync:youtube
+      - run: npm run validate && npm test && npm run build
+      - name: Commit validated data
+        id: commit
+        run: |
+          if git diff --quiet -- data; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data
+          git commit -m 'Update verified public YouTube project data'
+          git push
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+  deploy:
+    needs: sync
+    if: needs.sync.outputs.changed == 'true'
+    uses: ./.github/workflows/deploy.yml
