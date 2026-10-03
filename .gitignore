@@ -1,4 +1,5 @@
 node_modules/
+indexnow-result.json
 dist/
 .env
 .env.*

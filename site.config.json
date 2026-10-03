@@ -5,5 +5,13 @@
   "school": "한국폴리텍대학 서울강서캠퍼스",
   "youtubeHandle": "@kopo-poly",
   "channelId": "UCmzyR9BA0gHRM58o8SjdYjw",
-  "verification": { "google-site-verification": "", "naver-site-verification": "", "msvalidate.01": "" }
+  "verification": {
+    "google-site-verification": "",
+    "naver-site-verification": "",
+    "msvalidate.01": ""
+  },
+  "indexNow": {
+    "key": "a4962540db3f7f472ceba5417809374c",
+    "endpoint": "https://api.indexnow.org/indexnow"
+  }
 }

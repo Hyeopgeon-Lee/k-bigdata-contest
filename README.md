@@ -68,18 +68,19 @@ dist/                          # 생성 결과 (Git에 추가하지 않음)
 
 ```sh
 npm ci
+npm run build
 npm run validate
 npm test
-npm run build
+npm run test:seo
 npm run dev
 ```
 
-브라우저에서 http://127.0.0.1:4321 을 엽니다. 다른 포트를 사용하려면 `PORT` 환경변수를 지정합니다. 외부 패키지 설치 의존성이 없습니다. `npm test`는 생성 HTML도 검증하므로 dist를 재생성합니다.
+브라우저에서 http://127.0.0.1:4321 을 엽니다. 다른 포트를 사용하려면 `PORT` 환경변수를 지정합니다. 빌드·검증·IndexNow 도구는 `fast-xml-parser`를 사용하며 공개 사이트는 정적 파일로 동작합니다. 테스트 전에 빌드를 실행합니다.
 
 ## GitHub Pages 배포
 
 1. 저장소 **Settings → Pages → Build and deployment → Source**를 **GitHub Actions**로 설정합니다.
-2. main에 변경을 push하면 `deploy.yml`이 `npm ci → 검증 → 테스트 → 빌드 → Pages artifact → 배포`를 수행합니다.
+2. main에 변경을 push하면 `deploy.yml`이 `npm ci → 빌드 → 데이터 검증 → 테스트 → SEO 테스트 → Pages artifact → 배포 → 운영 페이지 검증 → IndexNow`를 수행합니다.
 3. Actions에서 **Deploy exhibition to GitHub Pages** 완료 상태와 `github-pages` 배포 URL을 확인합니다.
 4. `/`, `/2026/`, 작품 URL, 사이트맵을 직접 열어 확인합니다.
 
@@ -116,9 +117,10 @@ GitHub Pages는 한 사이트에 하나의 공식 custom domain을 지원합니�
 
 ```sh
 npm run prepare:data
+npm run build
 npm run validate
 npm test
-npm run build
+npm run test:seo
 ```
 
 생성된 projects 파일을 직접 편집할 수도 있지만 다음 동기화/prepare에서 덮어쓰이므로 지속 편집은 overrides에 기록합니다. 공개 이름 이외의 개인정보는 추가하지 않습니다. 공개 HTML은 학번·개인 연락처·이메일을 제거합니다. 원본 자료는 저장소 조사용이며 웹 배포 자산에 복사하지 않습니다.
@@ -141,9 +143,33 @@ npm run build
 
 VideoObject에는 실제 title, 공개 설명 기반 description, thumbnailUrl, uploadDate, duration, embedUrl이 들어갑니다. 상세 페이지의 영상이 주 콘텐츠로 보이도록 최상단에 배치합니다.
 
+각 작품은 독립 정적 HTML입니다. 초기 HTML에 작품명·개발 설명·공개 개발자명·기술·공개일·YouTube 링크와 고유 title/description/canonical/OG/Twitter/robots가 있습니다. JavaScript 실행 없이 작품 정보와 일반 링크를 수집할 수 있습니다. VideoObject에는 자기 URL, 한국어, 학과 publisher를 포함하고, WebPage의 mainEntity와 breadcrumb가 VideoObject·BreadcrumbList를 참조합니다. 홈과 연도 페이지의 CollectionPage/ItemList는 해당 연도의 모든 작품을 연결합니다.
+
+일반 사이트맵은 현재 홈·2026·데이터 안내·18개 작품의 **21개 URL**, 동영상 사이트맵은 **18개 작품**을 포함합니다. Video Sitemap의 제목·설명·썸네일·player_loc·publication_date·초 단위 duration은 검증된 공개 YouTube 자료를 사용하고 XML을 이스케이프합니다. `lastmod`는 Git의 실제 공개 데이터·템플릿 변경 이력을 기준으로 계산하며 단순 수집시각·문서 변경·매 빌드 날짜로 갱신하지 않습니다. 이력을 알 수 없는 환경에서는 임의 날짜를 넣지 않습니다. CI는 전체 Git 이력을 내려받습니다.
+
+`robots.txt`는 모든 경로를 허용하고 두 사이트맵을 선언합니다. 상세페이지는 `index, follow`이며 오류 페이지에만 `noindex`를 적용합니다. contest는 작품전시·개발 설명, portfolio는 역대 시연영상 아카이브 역할을 유지하고 각자의 상세 URL을 자기 canonical로 사용합니다.
+
+### IndexNow 자동 알림
+
+portfolio의 공개 키 검증·재시도 방식을 참고했습니다. 공개 검증 파일은 `public/a4962540db3f7f472ceba5417809374c.txt`이며 배포 후 동일 경로에서 정확히 키 문자열만 반환합니다. 키는 인증 비밀이 아니며 Google/Naver/Bing 소유확인 값과 별개입니다. `site.config.json`의 `indexNow`가 키와 공식 API를 설정합니다.
+
+배포 성공 후 별도 `notify-indexnow` job이 배포된 21개 HTML의 SEO를 검사하고, 키와 운영 sitemap을 최대 18회(10초 간격) 확인합니다. 운영 sitemap 전체 URL과 빌드 URL 집합이 같아야 전송합니다. `https://api.indexnow.org/indexnow`에 host/key/keyLocation/urlList를 POST합니다. HTTP 200/202는 접수 성공, 429/5xx 및 일시적 네트워크 실패는 최대 6회 재시도, 기타 4xx는 실패입니다. 배포 전파 중 키/sitemap의 404는 재확인합니다. 키 불일치·URL 0개·재시도 소진은 실패로 표시됩니다. 제출 결과는 Actions의 `indexnow-result` artifact에 남습니다. 알림 실패가 이미 공개된 Pages 배포를 되돌리지는 않습니다.
+
+수동 재확인: `npm run check:live`; 빌드 후 재통보: `npm run notify:indexnow`. IndexNow는 참여 검색엔진에 변경을 알리는 기능이며 Google/Naver 색인 완료를 의미하지 않습니다.
+
+### 검색엔진 소유확인
+
+현재 Google/Naver/Bing meta 인증 설정은 비어 있습니다. 실제 발급받은 메타값은 위 verification 설정에 넣고, HTML 인증 파일을 받았다면 `public/`에 원본을 추가해 배포합니다. Google DNS 도메인 인증을 완료했다면 HTML meta는 없어도 됩니다. 관리자 계정의 설정 여부는 공개 소스만으로 확인할 수 없으므로 이미 완료한 등록·소유확인은 반복하지 않습니다.
+
+- Google Search Console: 미확인 시 `contest.k-bigdata.kr` 소유확인 → 일반/동영상 sitemap 제출 상태 확인 → URL 검사와 대표 작품 5~10개 색인 요청.
+- Naver Search Advisor: 미등록 시 사이트 등록·소유확인 → robots 수집 확인 → 일반 sitemap 제출 → 대표 작품 수집 요청.
+- Bing Webmaster Tools: 미등록 시 사이트 등록 또는 Google Search Console import → sitemap 상태 확인. IndexNow 접수와 실제 색인은 별도입니다.
+
 ## 검증
 
 자동 테스트: 실제 데이터 필수값, 중복 videoId/slug, 날짜·연도, 안전한 중복 처리, 불확실 후보 보존, 팀원 합집합, 누락/빈 API 응답 보호, 공식 API 페이지 순회, 개인정보 제거, HTML 내부 링크/자산 존재, JSON-LD 파싱, 모든 작품의 최초 HTML 본문, 두 Sitemap과 CNAME.
+
+`npm run test:seo`는 18개 작품의 고유 title/description/canonical/slug/videoId, 본문 정보·기술·개인정보, OG/Twitter/robots, VideoObject/BreadcrumbList/WebPage 연결, CollectionPage/ItemList, 일반 HTML 링크·고립 페이지·404, XML 파싱·중복 URL·동영상 필드·robots의 두 sitemap 선언을 검사합니다. 오류가 있으면 Pages artifact 업로드 전에 실패합니다. IndexNow 200/202, 429/5xx 재시도, 기타 4xx, 키 불일치, 빈 sitemap과 외부 호스트도 테스트합니다. 운영 검증은 `npm run check:live`로 같은 기준을 실제 HTTP 응답과 X-Robots-Tag까지 적용합니다.
 
 출시 전 브라우저 검증: 360/390/430/768/1280/1440px 화면, 모든 작품 새로고침, 검색·분야·기술·정렬·URL 상태, 모바일 메뉴와 Escape, 썸네일 로드, 클릭 후 iframe 생성, 콘솔 오류. 외부 영상 재생은 YouTube 네트워크/브라우저 정책에 영향을 받으므로 원본 링크를 함께 제공합니다.
 

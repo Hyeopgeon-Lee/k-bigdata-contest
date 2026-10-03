@@ -14,18 +14,24 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      commit: ${{ steps.source.outputs.commit }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: main
+          fetch-depth: 0
+      - id: source
+        run: echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - run: npm run build
       - run: npm run validate
       - run: npm test
-      - run: npm run build
+      - run: npm run test:seo
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
@@ -40,3 +46,29 @@ jobs:
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
+  notify-indexnow:
+    needs: [build, deploy]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.build.outputs.commit }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Verify published key and notify IndexNow
+        run: npm run notify:indexnow
+      - name: Validate all deployed pages
+        run: npm run check:live
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: indexnow-result
+          path: indexnow-result.json
+          if-no-files-found: warn

@@ -2,9 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import {execFileSync} from 'node:child_process';
 import {readJSON} from '../scripts/data.mjs';
-execFileSync(process.execPath,['scripts/build.mjs']);
 const projects=readJSON('data/projects-2026.json');
 function files(dir){return fs.readdirSync(dir,{withFileTypes:true}).flatMap(d=>d.isDirectory()?files(path.join(dir,d.name)):[path.join(dir,d.name)])}
 test('all internal HTML links, assets, metadata and JSON-LD resolve',()=>{
