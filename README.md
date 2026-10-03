@@ -80,7 +80,7 @@ npm run dev
 ## GitHub Pages 배포
 
 1. 저장소 **Settings → Pages → Build and deployment → Source**를 **GitHub Actions**로 설정합니다.
-2. main에 변경을 push하면 `deploy.yml`이 `npm ci → 빌드 → 데이터 검증 → 테스트 → SEO 테스트 → Pages artifact → 배포 → 운영 페이지 검증 → IndexNow`를 수행합니다.
+2. main에 변경을 push하면 `deploy.yml`이 `npm ci → 빌드 → 데이터 검증 → 테스트 → SEO 테스트 → Pages artifact → 배포 → 공개 키·sitemap 확인 → IndexNow → 운영 페이지 검증`를 수행합니다.
 3. Actions에서 **Deploy exhibition to GitHub Pages** 완료 상태와 `github-pages` 배포 URL을 확인합니다.
 4. `/`, `/2026/`, 작품 URL, 사이트맵을 직접 열어 확인합니다.
 
@@ -153,7 +153,7 @@ VideoObject에는 실제 title, 공개 설명 기반 description, thumbnailUrl, 
 
 portfolio의 공개 키 검증·재시도 방식을 참고했습니다. 공개 검증 파일은 `public/a4962540db3f7f472ceba5417809374c.txt`이며 배포 후 동일 경로에서 정확히 키 문자열만 반환합니다. 키는 인증 비밀이 아니며 Google/Naver/Bing 소유확인 값과 별개입니다. `site.config.json`의 `indexNow`가 키와 공식 API를 설정합니다.
 
-배포 성공 후 별도 `notify-indexnow` job이 배포된 21개 HTML의 SEO를 검사하고, 키와 운영 sitemap을 최대 18회(10초 간격) 확인합니다. 운영 sitemap 전체 URL과 빌드 URL 집합이 같아야 전송합니다. `https://api.indexnow.org/indexnow`에 host/key/keyLocation/urlList를 POST합니다. HTTP 200/202는 접수 성공, 429/5xx 및 일시적 네트워크 실패는 최대 6회 재시도, 기타 4xx는 실패입니다. 배포 전파 중 키/sitemap의 404는 재확인합니다. 키 불일치·URL 0개·재시도 소진은 실패로 표시됩니다. 제출 결과는 Actions의 `indexnow-result` artifact에 남습니다. 알림 실패가 이미 공개된 Pages 배포를 되돌리지는 않습니다.
+배포 성공 후 별도 `notify-indexnow` job이 키와 운영 sitemap을 최대 18회(10초 간격) 확인하고 제출 후 운영 사이트 21개 HTML의 SEO를 검사합니다. 운영 sitemap 전체 URL과 빌드 URL 집합이 같아야 전송합니다. `https://api.indexnow.org/indexnow`에 host/key/keyLocation/urlList를 POST합니다. HTTP 200/202는 접수 성공, 429/5xx 및 일시적 네트워크 실패는 최대 6회 재시도, 기타 4xx는 실패입니다. 배포 전파 중 키/sitemap의 404는 재확인합니다. 키 불일치·URL 0개·재시도 소진은 실패로 표시됩니다. 제출 결과는 Actions의 `indexnow-result` artifact에 남습니다. 알림 실패가 이미 공개된 Pages 배포를 되돌리지는 않습니다.
 
 수동 재확인: `npm run check:live`; 빌드 후 재통보: `npm run notify:indexnow`. IndexNow는 참여 검색엔진에 변경을 알리는 기능이며 Google/Naver 색인 완료를 의미하지 않습니다.
 
