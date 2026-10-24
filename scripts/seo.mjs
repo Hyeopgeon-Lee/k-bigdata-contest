@@ -21,7 +21,7 @@ export function projectSchema(p,config){
   const url=config.url+projectPath(p);
   return [
     {'@type':'WebPage','@id':url+'#webpage',url,name:p.title,description:p.summary,inLanguage:'ko-KR',mainEntity:{'@id':url+'#video'},breadcrumb:{'@id':url+'#breadcrumb'}},
-    {'@type':'VideoObject','@id':url+'#video',name:p.title,description:p.summary,thumbnailUrl:[p.thumbnail],uploadDate:p.publishedAt,duration:p.duration,embedUrl:p.embedUrl,url,inLanguage:'ko',publisher:{'@type':'Organization',name:`${config.school} ${config.department}`},mainEntityOfPage:{'@id':url+'#webpage'}},
+    {'@type':'VideoObject','@id':url+'#video',name:p.title,description:p.summary,thumbnailUrl:[p.thumbnail],uploadDate:p.publishedAt,...(p.duration?{duration:p.duration}:{}),embedUrl:p.embedUrl,url,inLanguage:'ko',publisher:{'@type':'Organization',name:`${config.school} ${config.department}`},mainEntityOfPage:{'@id':url+'#webpage'}},
     {'@type':'BreadcrumbList','@id':url+'#breadcrumb',itemListElement:[{'@type':'ListItem',position:1,name:'프로젝트작품전시회',item:config.url+'/'},{'@type':'ListItem',position:2,name:`${p.year} 작품`,item:`${config.url}/${p.year}/`},{'@type':'ListItem',position:3,name:p.title,item:url}]},
   ];
 }

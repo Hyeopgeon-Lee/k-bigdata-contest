@@ -63,14 +63,14 @@ export function auditSEO({config,years,sitemapXml,videoSitemapXml,robots,pages})
     let schema=[];try{schema=schemaOf(html)}catch(error){expect(false,`Invalid JSON-LD ${url}: ${error.message}`)}
     const v=schema.find(s=>s['@type']==='VideoObject'),b=schema.find(s=>s['@type']==='BreadcrumbList'),w=schema.find(s=>s['@type']==='WebPage');
     expect(Boolean(v&&b&&w),`Missing VideoObject/BreadcrumbList/WebPage ${url}`);
-    if(v){for(const key of ['name','description','thumbnailUrl','uploadDate','duration','embedUrl'])expect(Boolean(v[key]),`VideoObject missing ${key} ${url}`);
-      expect(v.name===p.title&&v.description===p.summary&&v.uploadDate===p.publishedAt&&v.duration===p.duration&&v.embedUrl===p.embedUrl&&v.thumbnailUrl.includes(p.thumbnail),`VideoObject source mismatch ${url}`);
+    if(v){for(const key of ['name','description','thumbnailUrl','uploadDate','embedUrl'])expect(Boolean(v[key]),`VideoObject missing ${key} ${url}`);
+      expect(v.name===p.title&&v.description===p.summary&&v.uploadDate===p.publishedAt&&(p.duration?v.duration===p.duration:!v.duration)&&v.embedUrl===p.embedUrl&&v.thumbnailUrl.includes(p.thumbnail),`VideoObject source mismatch ${url}`);
       expect(v.url===canonical&&v.publisher?.name===`${config.school} ${config.department}`,`VideoObject URL/publisher mismatch ${url}`);
     }
     if(b)expect(b.itemListElement.at(-1).item===canonical,`Breadcrumb canonical mismatch ${url}`);
     if(w)expect(w.url===canonical&&w.mainEntity?.['@id']===v?.['@id']&&w.breadcrumb?.['@id']===b?.['@id'],`WebPage references mismatch ${url}`);
     const ve=videoEntries.get(url)?.['video:video'];expect(Boolean(ve),`Video sitemap missing ${url}`);
-    if(ve){for(const [field,value] of Object.entries({'video:thumbnail_loc':p.thumbnail,'video:title':p.title,'video:description':p.summary,'video:player_loc':p.embedUrl,'video:publication_date':p.publishedAt,'video:duration':String(durationSeconds(p.duration))}))expect(String(ve[field])===value,`Video sitemap ${field} source mismatch ${url}`)}
+    if(ve){for(const [field,value] of Object.entries({'video:thumbnail_loc':p.thumbnail,'video:title':p.title,'video:description':p.summary,'video:player_loc':p.embedUrl,'video:publication_date':p.publishedAt,...(p.duration?{'video:duration':String(durationSeconds(p.duration))}:{})}))expect(String(ve[field])===value,`Video sitemap ${field} source mismatch ${url}`)}
     const links=localLinks(main,url);expect(links.includes(`${config.url}/${p.year}/`)&&links.includes(config.url+'/'),`Missing exhibition/year backlinks ${url}`);
     expect(links.some(h=>h!==url&&h.includes(`/${p.year}/projects/`)),`Missing related-project HTML link ${url}`);
     expect(!/[\w.+-]+@[\w.-]+\.[a-z]{2,}/i.test(textOf(main))&&!/\b01[016789][ -]?\d{3,4}[ -]?\d{4}\b/.test(textOf(main))&&!/학번\s*[:：]?\s*\d+/.test(textOf(main)),`Personal identifiers in public HTML ${url}`);

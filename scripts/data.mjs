@@ -67,7 +67,7 @@ export function validateProjects(projects, year) {
   const errors = [], ids = new Set(), slugs = new Set();
   for (const p of projects) {
     const prefix = `${p.id || '(id 없음)'}: `;
-    for (const key of ['id','title','slug','youtubeVideoId','publishedAt','thumbnail','duration']) if (!p[key]) errors.push(prefix+key+' 없음');
+    for (const key of ['id','title','slug','youtubeVideoId','publishedAt','thumbnail']) if (!p[key]) errors.push(prefix+key+' 없음');
     if (ids.has(p.youtubeVideoId)) errors.push(prefix+'duplicate videoId'); ids.add(p.youtubeVideoId);
     if (slugs.has(p.slug)) errors.push(prefix+'duplicate slug'); slugs.add(p.slug);
     if (!/^[a-z0-9-]+$/.test(p.slug)) errors.push(prefix+'invalid slug');
@@ -75,10 +75,46 @@ export function validateProjects(projects, year) {
     if (p.year !== year || !Number.isFinite(Date.parse(p.publishedAt)) || new Date(p.publishedAt).getUTCFullYear() !== year) errors.push(prefix+'잘못된 year/publishedAt');
     for (const k of ['students','features','techStack','categories']) if (!Array.isArray(p[k])) errors.push(prefix+k+' 배열 필요');
     if (!/^https:\/\/i\.ytimg\.com\//.test(p.thumbnail)) errors.push(prefix+'invalid thumbnail');
-    if (!/^PT(?:\d+H)?(?:\d+M)?(?:\d+S)?$/.test(p.duration)) errors.push(prefix+'invalid duration');
+    if (p.duration != null && !/^PT(?:\d+H)?(?:\d+M)?(?:\d+S)?$/.test(p.duration)) errors.push(prefix+'invalid duration');
   }
   return errors;
 }
+export function applyVideoUpdates(projects, year) {
+  const file = `data/video-updates-${year}.json`;
+  if (!fs.existsSync(file)) return projects;
+  const updates = readJSON(file);
+  const replacements = new Map(updates.videos.map(video => [video.originalVideoId, video]));
+  const priority = new Map(updates.priorityVideoIds.map((id, index) => [id, index]));
+  const updated = projects.map(project => {
+    const video = replacements.get(project.id);
+    if (!video) return {...project, displayType: 'project'};
+    const youtubeUrl = `https://www.youtube.com/watch?v=${video.videoId}`;
+    const sameVideo = project.youtubeVideoId === video.videoId;
+    return {
+      ...project,
+      displayType: 'graduation',
+      youtubeVideoId: video.videoId,
+      youtubeUrl,
+      embedUrl: `https://www.youtube-nocookie.com/embed/${video.videoId}`,
+      thumbnail: `https://i.ytimg.com/vi/${video.videoId}/hqdefault.jpg`,
+      publishedAt: video.publishedAt,
+      duration: sameVideo ? project.duration : video.durationSeconds ? `PT${video.durationSeconds}S` : null,
+      description: publicText(video.description || project.description),
+      originalDescription: publicText(video.description || project.originalDescription),
+      source: {...project.source, url:youtubeUrl, method:'최종 공개 영상 · 학과 포트폴리오 데이터 확인'},
+    };
+  });
+  return updated.sort((a, b) => {
+    const ap = priority.get(a.id), bp = priority.get(b.id);
+    if (ap !== undefined || bp !== undefined) return (ap ?? Infinity) - (bp ?? Infinity);
+    if (a.displayType !== b.displayType) return a.displayType === 'graduation' ? -1 : 1;
+    return Date.parse(b.publishedAt) - Date.parse(a.publishedAt);
+  });
+}
 export function loadYears() {
-  return fs.readdirSync('data').filter(f=>/^projects-\d{4}\.json$/.test(f)).map(f=>({year:Number(f.match(/\d{4}/)[0]), projects:readJSON(`data/${f}`)})).sort((a,b)=>b.year-a.year);
+  return fs.readdirSync('data').filter(f=>/^projects-\d{4}\.json$/.test(f))
+    .map(f => {
+      const year = Number(f.match(/\d{4}/)[0]);
+      return {year, projects:applyVideoUpdates(readJSON(`data/${f}`),year)};
+    }).sort((a,b)=>b.year-a.year);
 }
