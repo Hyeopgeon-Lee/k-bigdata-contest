@@ -16,16 +16,16 @@
     const search = form.querySelector('#search'), category = form.querySelector('#category'), tech = form.querySelector('#technology'), sort = form.querySelector('#sort');
     const params = new URLSearchParams(location.search);
     for (const control of [search, category, tech, sort]) if (params.has(control.name)) control.value = params.get(control.name);
-    if (!sort.value) sort.value = 'latest';
+    if (!sort.value) sort.value = 'priority';
     function update() {
       const query = search.value.trim().toLocaleLowerCase('ko-KR');
-      const ordered = [...cards].sort(sort.value === 'title' ? (a,b) => a.dataset.title.localeCompare(b.dataset.title,'ko') : (a,b) => Date.parse(b.dataset.date)-Date.parse(a.dataset.date));
+      const ordered = sort.value === 'priority' ? cards : [...cards].sort(sort.value === 'title' ? (a,b) => a.dataset.title.localeCompare(b.dataset.title,'ko') : (a,b) => Date.parse(b.dataset.date)-Date.parse(a.dataset.date));
       let count = 0;
       ordered.forEach(card => { const visible = query.split(/\s+/).every(term => card.dataset.search.includes(term)) && (!category.value || JSON.parse(card.dataset.categories).includes(category.value)) && (!tech.value || JSON.parse(card.dataset.tech).includes(tech.value)); card.hidden = !visible; count += Number(visible); grid.append(card); });
       document.querySelector('#result-count').textContent = `${count}개 작품${query || category.value || tech.value ? ' 검색됨' : ' 전체'}`;
       document.querySelector('#no-results').hidden = count > 0;
       const next = new URL(location.href);
-      for (const control of [search, category, tech, sort]) if (control.value && !(control === sort && control.value === 'latest')) next.searchParams.set(control.name, control.value); else next.searchParams.delete(control.name);
+      for (const control of [search, category, tech, sort]) if (control.value && !(control === sort && control.value === 'priority')) next.searchParams.set(control.name, control.value); else next.searchParams.delete(control.name);
       history.replaceState(null, '', next);
     }
     form.addEventListener('submit', event => event.preventDefault());

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {deduplicate,validateProjects,readJSON,publicText,makeProject} from '../scripts/data.mjs';
+import {deduplicate,validateProjects,readJSON,publicText,makeProject,loadYears} from '../scripts/data.mjs';
 import {collectYouTube,saveSnapshot} from '../scripts/sync-youtube.mjs';
 const sample=readJSON('data/projects-2026.json')[0];
 test('all real project data validates',()=>assert.deepEqual(validateProjects(readJSON('data/projects-2026.json'),2026),[]));
@@ -32,4 +32,16 @@ test('complete playlist pagination uses actual video publication time and durati
  else data={items:[{id:'12345678901',snippet:{title:'new',description:'real',publishedAt:'2026-01-01T00:00:00Z'},status:{privacyStatus:'public',embeddable:true},contentDetails:{duration:'PT2M'}},{id:'abcdefghijk',snippet:{publishedAt:'2025-12-31T23:59:59Z'},status:{privacyStatus:'public'},contentDetails:{duration:'PT1M'}}]};
  return {ok:true,json:async()=>data}};
  const result=await collectYouTube('fake',2026,fake);assert.equal(playlistCalls,2);assert.equal(result.raw.length,1);assert.equal(result.raw[0].duration,'PT2M');
+});
+
+test('graduation videos use requested order, confirmed IDs and no guessed lengths',()=>{
+ const projects=loadYears()[0].projects;
+ assert.deepEqual(projects.slice(0,7).map(p=>p.students[0]),['양준모','정대현','김예가','안정훈','유영상','지주우','최준영']);
+ assert.equal(projects.length,18);
+ assert.equal(projects.filter(p=>p.displayType==='graduation').length,16);
+ const ids={'양준모':'shpXXmx3gGc','정대현':'nZcWGA2R8uw','김예가':'3D8PdVOwZRY','안정훈':'LDGahzQRM88','유영상':'EWGuWsyrrww','지주우':'IpLoGlue3fQ','최준영':'O13tC34ezqw'};
+ for(const [name,videoId] of Object.entries(ids))assert.equal(projects.find(p=>p.students.includes(name)).youtubeVideoId,videoId);
+ assert.equal(projects.find(p=>p.students.includes('양준모')).duration,null);
+ assert.equal(new Set(projects.map(p=>p.youtubeVideoId)).size,18);
+ assert.deepEqual(validateProjects(projects,2026),[]);
 });
